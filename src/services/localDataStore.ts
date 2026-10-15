@@ -1,4 +1,5 @@
 import { User, Vehicle, Factory, Trip } from '../types/index.ts';
+import { firebaseSync } from './firebaseSync.ts';
 
 const USERS_STORAGE_KEY = 'gestao_puxada_users_store_v3';
 const VEHICLES_STORAGE_KEY = 'gestao_puxada_vehicles_store_v3';
@@ -43,6 +44,53 @@ function safeSetItem<T>(key: string, value: T): void {
 }
 
 export const localDataStore = {
+  // Initialize and sync with Firebase Firestore on app load
+  async initFirebaseSync(): Promise<void> {
+    try {
+      // Fetch users
+      const fbUsers = await firebaseSync.getAllItems('users');
+      if (fbUsers && fbUsers.length > 0) {
+        const local = this.getUsers();
+        const merged = [...fbUsers, ...local.filter(l => !fbUsers.some(f => f.id === l.id))];
+        this.saveUsers(merged);
+      } else {
+        await firebaseSync.syncBatch('users', this.getUsers());
+      }
+
+      // Fetch vehicles
+      const fbVehicles = await firebaseSync.getAllItems('vehicles');
+      if (fbVehicles && fbVehicles.length > 0) {
+        const local = this.getVehicles();
+        const merged = [...fbVehicles, ...local.filter(l => !fbVehicles.some(f => f.id === l.id))];
+        this.saveVehicles(merged);
+      } else {
+        await firebaseSync.syncBatch('vehicles', this.getVehicles());
+      }
+
+      // Fetch factories
+      const fbFactories = await firebaseSync.getAllItems('factories');
+      if (fbFactories && fbFactories.length > 0) {
+        const local = this.getFactories();
+        const merged = [...fbFactories, ...local.filter(l => !fbFactories.some(f => f.id === l.id))];
+        this.saveFactories(merged);
+      } else {
+        await firebaseSync.syncBatch('factories', this.getFactories());
+      }
+
+      // Fetch trips
+      const fbTrips = await firebaseSync.getAllItems('trips');
+      if (fbTrips && fbTrips.length > 0) {
+        const local = this.getTrips();
+        const merged = [...fbTrips, ...local.filter(l => !fbTrips.some(f => f.id === l.id))];
+        this.saveTrips(merged);
+      } else {
+        await firebaseSync.syncBatch('trips', this.getTrips());
+      }
+    } catch (err) {
+      console.warn('[LocalDataStore] Error during Firebase sync init:', err);
+    }
+  },
+
   // --- USERS ---
   getUsers(): User[] {
     return safeGetItem<User[]>(USERS_STORAGE_KEY, []);
@@ -63,6 +111,9 @@ export const localDataStore = {
       updated = [user, ...current];
     }
     this.saveUsers(updated);
+    if (user && user.id) {
+      firebaseSync.saveItem('users', user.id, updated.find(u => u.id === user.id) || user);
+    }
     return updated;
   },
 
@@ -70,6 +121,10 @@ export const localDataStore = {
     const current = this.getUsers();
     const updated = current.map(u => u.id === user.id ? { ...u, ...user } : u);
     this.saveUsers(updated);
+    const target = updated.find(u => u.id === user.id);
+    if (target) {
+      firebaseSync.saveItem('users', user.id, target);
+    }
     return updated;
   },
 
@@ -77,6 +132,7 @@ export const localDataStore = {
     const current = this.getUsers();
     const updated = current.filter(u => u.id !== id);
     this.saveUsers(updated);
+    firebaseSync.deleteItem('users', id);
     return updated;
   },
 
@@ -84,14 +140,11 @@ export const localDataStore = {
     if (!Array.isArray(apiUsers)) return this.getUsers();
     const local = this.getUsers();
     
-    // Create map from API items
     const mergedMap = new Map<string, User>();
     apiUsers.forEach(u => mergedMap.set(u.id, u));
 
-    // Preserve any local user that was created locally but might not be returned yet
     local.forEach(u => {
       if (!mergedMap.has(u.id)) {
-        // Also check if login matches
         const matchesLogin = apiUsers.some(apiU => apiU.login && u.login && apiU.login.toUpperCase() === u.login.toUpperCase());
         if (!matchesLogin) {
           mergedMap.set(u.id, u);
@@ -101,6 +154,7 @@ export const localDataStore = {
 
     const result = Array.from(mergedMap.values());
     this.saveUsers(result);
+    firebaseSync.syncBatch('users', result);
     return result;
   },
 
@@ -124,6 +178,9 @@ export const localDataStore = {
       updated = [vehicle, ...current];
     }
     this.saveVehicles(updated);
+    if (vehicle && vehicle.id) {
+      firebaseSync.saveItem('vehicles', vehicle.id, updated.find(v => v.id === vehicle.id) || vehicle);
+    }
     return updated;
   },
 
@@ -131,6 +188,10 @@ export const localDataStore = {
     const current = this.getVehicles();
     const updated = current.map(v => v.id === vehicle.id ? { ...v, ...vehicle } : v);
     this.saveVehicles(updated);
+    const target = updated.find(v => v.id === vehicle.id);
+    if (target) {
+      firebaseSync.saveItem('vehicles', vehicle.id, target);
+    }
     return updated;
   },
 
@@ -138,6 +199,7 @@ export const localDataStore = {
     const current = this.getVehicles();
     const updated = current.filter(v => v.id !== id);
     this.saveVehicles(updated);
+    firebaseSync.deleteItem('vehicles', id);
     return updated;
   },
 
@@ -159,6 +221,7 @@ export const localDataStore = {
 
     const result = Array.from(mergedMap.values());
     this.saveVehicles(result);
+    firebaseSync.syncBatch('vehicles', result);
     return result;
   },
 
@@ -182,6 +245,9 @@ export const localDataStore = {
       updated = [factory, ...current];
     }
     this.saveFactories(updated);
+    if (factory && factory.id) {
+      firebaseSync.saveItem('factories', factory.id, updated.find(f => f.id === factory.id) || factory);
+    }
     return updated;
   },
 
@@ -189,6 +255,10 @@ export const localDataStore = {
     const current = this.getFactories();
     const updated = current.map(f => f.id === factory.id ? { ...f, ...factory } : f);
     this.saveFactories(updated);
+    const target = updated.find(f => f.id === factory.id);
+    if (target) {
+      firebaseSync.saveItem('factories', factory.id, target);
+    }
     return updated;
   },
 
@@ -196,6 +266,7 @@ export const localDataStore = {
     const current = this.getFactories();
     const updated = current.filter(f => f.id !== id);
     this.saveFactories(updated);
+    firebaseSync.deleteItem('factories', id);
     return updated;
   },
 
@@ -217,6 +288,7 @@ export const localDataStore = {
 
     const result = Array.from(mergedMap.values());
     this.saveFactories(result);
+    firebaseSync.syncBatch('factories', result);
     return result;
   },
 
@@ -240,6 +312,9 @@ export const localDataStore = {
       updated = [trip, ...current];
     }
     this.saveTrips(updated);
+    if (trip && trip.id) {
+      firebaseSync.saveItem('trips', trip.id, updated.find(t => t.id === trip.id) || trip);
+    }
     return updated;
   },
 
@@ -247,6 +322,10 @@ export const localDataStore = {
     const current = this.getTrips();
     const updated = current.map(t => t.id === trip.id ? { ...t, ...trip } : t);
     this.saveTrips(updated);
+    const target = updated.find(t => t.id === trip.id);
+    if (target) {
+      firebaseSync.saveItem('trips', trip.id, target);
+    }
     return updated;
   },
 
@@ -266,13 +345,14 @@ export const localDataStore = {
       return true;
     });
     this.saveTrips(updated);
+    firebaseSync.deleteItem('trips', id);
     return updated;
   },
 
   mergeTrips(apiTrips: Trip[]): Trip[] {
     if (!Array.isArray(apiTrips)) return this.getTrips();
-    // Authoritative sync: save server trips to local store so deletions are strictly respected
     this.saveTrips(apiTrips);
+    firebaseSync.syncBatch('trips', apiTrips);
     return apiTrips;
   },
 };

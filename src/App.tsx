@@ -33,11 +33,16 @@ import { NewFactoryModal } from './components/modals/NewFactoryModal.tsx';
 import { NewScheduleModal } from './components/modals/NewScheduleModal.tsx';
 
 import { Trip } from './types/index.ts';
+import { localDataStore } from './services/localDataStore.ts';
 
 function MainApp() {
   const { isAuthenticated, isLoading, role } = useAuth();
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    localDataStore.initFirebaseSync().catch(console.warn);
+  }, []);
 
   // Modals state
   const [selectedTripDetails, setSelectedTripDetails] = useState<Trip | null>(null);
