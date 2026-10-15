@@ -47,44 +47,48 @@ export const localDataStore = {
   // Initialize and sync with Firebase Firestore on app load
   async initFirebaseSync(): Promise<void> {
     try {
-      // Fetch users
+      // Fetch users and ensure bidirectional sync
       const fbUsers = await firebaseSync.getAllItems('users');
+      const localUsers = this.getUsers();
       if (fbUsers && fbUsers.length > 0) {
-        const local = this.getUsers();
-        const merged = [...fbUsers, ...local.filter(l => !fbUsers.some(f => f.id === l.id))];
+        const merged = [...fbUsers, ...localUsers.filter(l => !fbUsers.some(f => f.id === l.id))];
         this.saveUsers(merged);
+        await firebaseSync.syncBatch('users', merged);
       } else {
-        await firebaseSync.syncBatch('users', this.getUsers());
+        await firebaseSync.syncBatch('users', localUsers);
       }
 
-      // Fetch vehicles
+      // Fetch vehicles and ensure bidirectional sync
       const fbVehicles = await firebaseSync.getAllItems('vehicles');
+      const localVehicles = this.getVehicles();
       if (fbVehicles && fbVehicles.length > 0) {
-        const local = this.getVehicles();
-        const merged = [...fbVehicles, ...local.filter(l => !fbVehicles.some(f => f.id === l.id))];
+        const merged = [...fbVehicles, ...localVehicles.filter(l => !fbVehicles.some(f => f.id === l.id))];
         this.saveVehicles(merged);
+        await firebaseSync.syncBatch('vehicles', merged);
       } else {
-        await firebaseSync.syncBatch('vehicles', this.getVehicles());
+        await firebaseSync.syncBatch('vehicles', localVehicles);
       }
 
-      // Fetch factories
+      // Fetch factories and ensure bidirectional sync
       const fbFactories = await firebaseSync.getAllItems('factories');
+      const localFactories = this.getFactories();
       if (fbFactories && fbFactories.length > 0) {
-        const local = this.getFactories();
-        const merged = [...fbFactories, ...local.filter(l => !fbFactories.some(f => f.id === l.id))];
+        const merged = [...fbFactories, ...localFactories.filter(l => !fbFactories.some(f => f.id === l.id))];
         this.saveFactories(merged);
+        await firebaseSync.syncBatch('factories', merged);
       } else {
-        await firebaseSync.syncBatch('factories', this.getFactories());
+        await firebaseSync.syncBatch('factories', localFactories);
       }
 
-      // Fetch trips
+      // Fetch trips and ensure bidirectional sync
       const fbTrips = await firebaseSync.getAllItems('trips');
+      const localTrips = this.getTrips();
       if (fbTrips && fbTrips.length > 0) {
-        const local = this.getTrips();
-        const merged = [...fbTrips, ...local.filter(l => !fbTrips.some(f => f.id === l.id))];
+        const merged = [...fbTrips, ...localTrips.filter(l => !fbTrips.some(f => f.id === l.id))];
         this.saveTrips(merged);
+        await firebaseSync.syncBatch('trips', merged);
       } else {
-        await firebaseSync.syncBatch('trips', this.getTrips());
+        await firebaseSync.syncBatch('trips', localTrips);
       }
     } catch (err) {
       console.warn('[LocalDataStore] Error during Firebase sync init:', err);
