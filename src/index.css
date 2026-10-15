@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg-base: #081028;
+    --color-bg-surface: #0B1530;
+    --color-bg-panel: #0D1936;
+    --color-bg-card: #0D1B3E;
+    --color-bg-input: #071024;
+    --color-border: #162850;
+    --color-accent-blue: #2563EB;
+  }
+
+  html {
+    color-scheme: dark;
+    background-color: #081028 !important;
+  }
+
+  body {
+    background-color: #081028 !important;
+    color: #F8FAFC !important;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  /* Standard font family for all text elements */
+  *, button, input, select, textarea, p, span, h1, h2, h3, h4, h5, h6, table, th, td {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  }
+
+  /* Universal dark navy surface mapping across all pages */
+  .bg-white,
+  .dark\:bg-zinc-900,
+  .dark\:bg-zinc-800 {
+    background-color: #0B1530 !important;
+  }
+
+  .bg-zinc-50,
+  .dark\:bg-zinc-950 {
+    background-color: #081028 !important;
+  }
+
+  .bg-zinc-100,
+  .dark\:bg-zinc-800\/50,
+  .dark\:bg-zinc-800\/60,
+  .dark\:bg-zinc-800\/80,
+  .dark\:bg-zinc-800\/40,
+  .dark\:bg-zinc-800\/20 {
+    background-color: #0D1B3E !important;
+  }
+
+  /* Power BI KPI cards: Clean white background with blue text and info as requested */
+  .pbi-kpi-card {
+    background-color: #FFFFFF !important;
+    border: 2px solid #BFDBFE !important;
+    box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .pbi-kpi-card,
+  .pbi-kpi-card p,
+  .pbi-kpi-card span,
+  .pbi-kpi-card h1,
+  .pbi-kpi-card h2,
+  .pbi-kpi-card h3,
+  .pbi-kpi-card div,
+  .pbi-kpi-card * {
+    color: #0F2C59;
+  }
+
+  .pbi-kpi-card .card-label,
+  .pbi-kpi-card p.uppercase,
+  .pbi-kpi-card span.uppercase,
+  .pbi-kpi-card [class*="uppercase"] {
+    color: #1D4ED8 !important;
+    font-weight: 700 !important;
+  }
+
+  .pbi-kpi-card .card-value,
+  .pbi-kpi-card p.text-2xl,
+  .pbi-kpi-card p.text-3xl,
+  .pbi-kpi-card p[class*="text-2xl"],
+  .pbi-kpi-card p[class*="text-3xl"] {
+    color: #0B1938 !important;
+    font-weight: 900 !important;
+  }
+
+  .pbi-kpi-card svg {
+    color: #2563EB !important;
+    stroke: #2563EB !important;
+  }
+
+  .pbi-kpi-card .text-white,
+  .pbi-kpi-card .text-slate-300,
+  .pbi-kpi-card .text-slate-400,
+  .pbi-kpi-card .text-zinc-300,
+  .pbi-kpi-card .text-zinc-400 {
+    color: #0F2C59 !important;
+  }
+
+  /* Borders matching dark navy palette */
+  .border-zinc-200,
+  .border-zinc-300,
+  .border-zinc-100,
+  .dark\:border-zinc-800,
+  .dark\:border-zinc-700 {
+    border-color: #162850 !important;
+  }
+
+  /* Text colors on dark navy background */
+  .dark\:text-white,
+  .dark\:text-zinc-100,
+  .dark\:text-zinc-200 {
+    color: #F8FAFC !important;
+  }
+
+  /* High contrast readable text on any light surfaces */
+  .bg-white:not(.dark *),
+  .bg-zinc-50:not(.dark *),
+  .bg-blue-50:not(.dark *),
+  .bg-emerald-50:not(.dark *),
+  .bg-amber-50:not(.dark *) {
+    color: #0F172A;
+  }
+
+  .text-slate-300:where(.pbi-kpi-card *),
+  .text-white:where(.pbi-kpi-card *) {
+    color: #0B1938 !important;
+  }
+
+  /* Inputs, selects and textareas */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    background-color: #071024 !important;
+    border-color: #1E3A8A !important;
+    color: #FFFFFF !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus,
+  textarea:focus {
+    border-color: #3B82F6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4) !important;
+  }
+
+  /* Tables styling with high contrast headers */
+  table {
+    border-color: #162850 !important;
+  }
+
+  thead, thead tr {
+    background-color: #071024 !important;
+    border-color: #1E3A8A !important;
+  }
+
+  thead th {
+    color: #E2E8F0 !important;
+    border-color: #1E3A8A !important;
+  }
+
+  tbody tr {
+    border-color: #162850 !important;
+  }
+
+  tbody tr:hover {
+    background-color: #0E1F46 !important;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #081028;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #162850;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2563EB;
+  }
+}
