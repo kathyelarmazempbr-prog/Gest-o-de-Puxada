@@ -1,87 +1,186 @@
 import { User, Vehicle, Factory, Trip } from '../types/index.ts';
 import { firebaseSync } from './firebaseSync.ts';
 
-const USERS_STORAGE_KEY = 'gestao_puxada_users_store_v4';
-const VEHICLES_STORAGE_KEY = 'gestao_puxada_vehicles_store_v4';
-const FACTORIES_STORAGE_KEY = 'gestao_puxada_factories_store_v4';
-const TRIPS_STORAGE_KEY = 'gestao_puxada_trips_store_v4';
-const DRIVERS_STORAGE_KEY = 'gestao_puxada_drivers_store_v4';
-const SCHEDULES_STORAGE_KEY = 'gestao_puxada_schedules_store_v4';
+const USERS_STORAGE_KEY = 'gestao_puxada_users_store_v5';
+const VEHICLES_STORAGE_KEY = 'gestao_puxada_vehicles_store_v5';
+const FACTORIES_STORAGE_KEY = 'gestao_puxada_factories_store_v5';
+const TRIPS_STORAGE_KEY = 'gestao_puxada_trips_store_v5';
+const DRIVERS_STORAGE_KEY = 'gestao_puxada_drivers_store_v5';
+const SCHEDULES_STORAGE_KEY = 'gestao_puxada_schedules_store_v5';
 
-export const DEFAULT_USERS: User[] = [
-  { id: 'usr_g1073', name: 'Motorista G1073', login: 'G1073', raw_password: '0000', role: 'MOTORISTA', status: 'Ativo', driver_id: 'drv_g1073', phone: '(11) 98765-4321', email: 'g1073@puxada.log.br', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'usr_mot_1', name: 'João Motorista', login: 'MOT-001', raw_password: '123', role: 'MOTORISTA', status: 'Ativo', driver_id: 'drv_1', phone: '(11) 99888-1111', email: 'mot001@puxada.log.br', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'usr_adm_1', name: 'Carlos Admin', login: 'carlos.admin', raw_password: '123', role: 'ADMINISTRADOR', status: 'Ativo', phone: '(11) 99999-1111', email: 'carlos.admin@puxada.log.br', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'usr_adm_general', name: 'Administrador', login: 'admin', raw_password: '123', role: 'ADMINISTRADOR', status: 'Ativo', phone: '(11) 99999-2222', email: 'admin@puxada.log.br', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'usr_adm_master', name: 'Desenvolvedor Master', login: 'dev', raw_password: '123', role: 'DESENVOLVEDOR', status: 'Ativo', phone: '(11) 99999-0000', email: 'dev@puxada.log.br', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'usr_kathyel', name: 'Kathyel Gestão', login: 'kathyelarmazempbr@gmail.com', raw_password: '0000', role: 'ADMINISTRADOR', status: 'Ativo', phone: '(11) 99999-3333', email: 'kathyelarmazempbr@gmail.com', created_at: '2026-01-01', updated_at: '2026-01-01' },
-];
-
-export const DEFAULT_FACTORIES: Factory[] = [
-  { id: 'fac_1', factory_code: 'ITAPISSUMA', name: 'Fábrica Itapissuma', state: 'PE', city: 'Itapissuma', status: 'Ativa', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'fac_2', factory_code: 'ESTANCIA', name: 'Fábrica Estância', state: 'SE', city: 'Estância', status: 'Ativa', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'fac_3', factory_code: 'FONTE DA MATA', name: 'Fábrica Fonte da Mata', state: 'BA', city: 'Alagoinhas', status: 'Ativa', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'fac_4', factory_code: 'AQUIRAZ', name: 'Fábrica Aquiraz', state: 'CE', city: 'Aquiraz', status: 'Ativa', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'fac_5', factory_code: 'CAMAÇARI', name: 'Fábrica Camaçari', state: 'BA', city: 'Camaçari', status: 'Ativa', created_at: '2026-01-01', updated_at: '2026-01-01' },
-];
-
-export const DEFAULT_VEHICLES: Vehicle[] = [
-  { id: 'veh_1', plate: 'RLT5J54', vehicle_number: 'CAR-01', brand: 'Scania', model: 'R450', year: 2023, type: 'Carreta Sider', status: 'Disponível', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'veh_2', plate: 'RLU3F59', vehicle_number: 'CAR-02', brand: 'Volvo', model: 'FH540', year: 2023, type: 'Carreta Baú', status: 'Disponível', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'veh_3', plate: 'RLT5J44', vehicle_number: 'CAR-03', brand: 'Mercedes', model: 'Actros', year: 2022, type: 'Carreta Sider', status: 'Disponível', created_at: '2026-01-01', updated_at: '2026-01-01' },
-  { id: 'veh_4', plate: 'QFT5753', vehicle_number: 'CAR-04', brand: 'DAF', model: 'XF105', year: 2022, type: 'Carreta Graneleira', status: 'Disponível', created_at: '2026-01-01', updated_at: '2026-01-01' },
-];
-
-export const DEFAULT_DRIVERS = [
-  { id: 'drv_g1073', user_id: 'usr_g1073', name: 'Motorista G1073', registration: 'G1073', phone: '(11) 98765-4321', cnh: '01234567890', cnh_category: 'E', status: 'Ativo', default_vehicle_id: 'veh_1' },
-  { id: 'drv_1', user_id: 'usr_mot_1', name: 'João da Silva', registration: 'MOT-001', phone: '(11) 99888-1111', cnh: '12345678900', cnh_category: 'E', status: 'Ativo', default_vehicle_id: 'veh_1' },
-  { id: 'drv_2', user_id: 'usr_mot_2', name: 'Marcos Santos', registration: 'MOT-002', phone: '(11) 99888-2222', cnh: '23456789011', cnh_category: 'E', status: 'Ativo', default_vehicle_id: 'veh_2' },
-  { id: 'drv_3', user_id: 'usr_mot_3', name: 'Roberto Souza', registration: 'MOT-003', phone: '(11) 99888-3333', cnh: '34567890122', cnh_category: 'E', status: 'Ativo', default_vehicle_id: 'veh_3' },
-];
-
-export const DEFAULT_TRIPS: Trip[] = [
+// Real operational data from gestao_puxada_backup.json
+export const REAL_USERS: User[] = [
   {
-    id: 'trp_1',
-    date: '2026-04-10',
-    driver_id: 'drv_g1073',
-    driver_name: 'Motorista G1073',
-    vehicle_id: 'veh_1',
-    vehicle_plate: 'RLT5J54',
-    factory_id: 'fac_1',
-    factory_name: 'Fábrica Itapissuma',
-    factory_code: 'ITAPISSUMA',
-    planned_departure: '08:00',
-    planned_arrival: '14:00',
-    actual_departure: '08:15',
-    actual_arrival: '13:50',
-    status: 'Finalizada',
-    initial_km: 120500,
-    final_km: 120850,
-    total_km: 350,
-    total_time: '05:35',
-    meals_count: 1,
-    appointment_window: '08:00 – 14:00',
-    order_number: 'PED-9001',
-    created_at: '2026-04-10T08:00:00Z',
-    updated_at: '2026-04-10T14:00:00Z'
+    id: 'usr_dev_master',
+    name: 'KATHYEL',
+    cpf: '000.000.000-00',
+    phone: '',
+    email: 'kathyelarmazempbr@gmail.com',
+    login: 'G1073',
+    role: 'DESENVOLVEDOR',
+    status: 'Ativo',
+    raw_password: '0000',
+    created_at: '2026-09-29T10:00:00.000Z',
+    updated_at: '2026-10-01T17:16:28.349Z'
   },
   {
-    id: 'trp_2',
-    date: '2026-04-14',
-    driver_id: 'drv_g1073',
-    driver_name: 'Motorista G1073',
-    vehicle_id: 'veh_1',
-    vehicle_plate: 'RLT5J54',
-    factory_id: 'fac_2',
-    factory_name: 'Fábrica Estância',
-    factory_code: 'ESTANCIA',
-    planned_departure: '09:00',
-    planned_arrival: '16:00',
-    status: 'Programada',
-    appointment_window: '09:00 – 16:00',
-    order_number: 'PED-9002',
-    created_at: '2026-04-14T09:00:00Z',
-    updated_at: '2026-04-14T09:00:00Z'
+    id: 'usr_1791467937331_lshu',
+    name: 'MANOEL MESSIAS',
+    cpf: '',
+    phone: '',
+    email: 'g1044@puxada.log.br',
+    login: 'G1044',
+    role: 'MOTORISTA',
+    status: 'Ativo',
+    raw_password: '0001',
+    driver_id: 'drv_1791467937343_is58',
+    created_at: '2026-10-08T13:58:57.331Z',
+    updated_at: '2026-10-08T13:58:57.331Z'
+  }
+];
+
+export const REAL_VEHICLES: Vehicle[] = [
+  {
+    id: 'veh_1791467955584_p6x1',
+    plate: 'RLU-3F59',
+    vehicle_number: 'RLU3F59',
+    brand: 'Scania',
+    model: 'OFH-7150',
+    year: 2026,
+    type: 'Semirreboque',
+    capacity: '',
+    status: 'Disponível',
+    created_at: '2026-10-08T13:59:15.584Z',
+    updated_at: '2026-10-13T19:54:22.304Z'
+  },
+  {
+    id: 'veh_1791467966199_ohg0',
+    plate: 'RLT-5J54',
+    vehicle_number: 'RLT5J54',
+    brand: 'Volvo',
+    model: 'NPT-1753',
+    year: 2026,
+    type: 'Semirreboque',
+    capacity: '',
+    status: 'Disponível',
+    created_at: '2026-10-08T13:59:26.199Z',
+    updated_at: '2026-10-13T19:21:41.655Z'
+  },
+  {
+    id: 'veh_1791467976230_s735',
+    plate: 'RLT-5J44',
+    vehicle_number: 'RLT5J44',
+    brand: 'Volvo',
+    model: 'MOM-7962',
+    year: 2026,
+    type: 'Semirreboque',
+    capacity: '',
+    status: 'Disponível',
+    created_at: '2026-10-08T13:59:36.230Z',
+    updated_at: '2026-10-14T13:48:48.212Z'
+  }
+];
+
+export const REAL_FACTORIES: Factory[] = [
+  {
+    id: 'fac_1791468036762_xvga',
+    factory_code: '950',
+    name: 'ITAPISSUMA',
+    state: 'PE',
+    city: 'Itapissuma',
+    status: 'Ativa',
+    created_at: '2026-10-08T14:00:36.762Z',
+    updated_at: '2026-10-08T14:00:36.762Z'
+  },
+  {
+    id: 'fac_1791468057926_8bfx',
+    factory_code: '3006',
+    name: 'AGUAS CLARAS',
+    state: 'SE',
+    city: 'Estância',
+    status: 'Ativa',
+    created_at: '2026-10-08T14:00:57.926Z',
+    updated_at: '2026-10-08T14:00:57.926Z'
+  },
+  {
+    id: 'fac_1791981512242_ta32',
+    factory_code: '426',
+    name: 'FONTE DA MATA',
+    state: 'PB',
+    city: 'Fonte da Mata',
+    status: 'Ativa',
+    created_at: '2026-10-14T12:38:32.242Z',
+    updated_at: '2026-10-14T13:42:05.554Z'
+  },
+  {
+    id: 'fac_1791981512278_hdhs',
+    factory_code: '436',
+    name: 'AQUIRAZ',
+    state: 'CE',
+    city: 'Aquiraz',
+    status: 'Ativa',
+    created_at: '2026-10-14T12:38:32.278Z',
+    updated_at: '2026-10-14T13:42:14.356Z'
+  },
+  {
+    id: 'fac_1791981512313_m78d',
+    factory_code: '201',
+    name: 'CAMAÇARI',
+    state: 'BA',
+    city: 'Camaçari',
+    status: 'Ativa',
+    created_at: '2026-10-14T12:38:32.313Z',
+    updated_at: '2026-10-14T13:42:20.859Z'
+  }
+];
+
+export const REAL_DRIVERS = [
+  {
+    id: 'drv_1791467937343_is58',
+    user_id: 'usr_1791467937331_lshu',
+    name: 'MANOEL MESSIAS',
+    cpf: '',
+    registration: 'G1044',
+    phone: '',
+    cnh: '',
+    cnh_category: 'E',
+    status: 'Ativo',
+    default_vehicle_id: 'veh_1791467976230_s735',
+    created_at: '2026-10-08T13:58:57.331Z',
+    updated_at: '2026-10-08T13:58:57.331Z'
+  }
+];
+
+export const REAL_TRIPS: Trip[] = [
+  {
+    id: 'trp_1791985420941_t288',
+    date: '2026-10-14',
+    driver_id: 'drv_1791467937343_is58',
+    driver_name: 'MANOEL MESSIAS',
+    vehicle_id: 'veh_1791467976230_s735',
+    vehicle_plate: 'RLT-5J44',
+    factory_id: 'fac_1791468036762_xvga',
+    factory_name: 'ITAPISSUMA',
+    factory_code: '950',
+    planned_departure: '20:00',
+    actual_departure: '16:22',
+    actual_arrival: '07:10',
+    status: 'Finalizada',
+    appointment_window: '20:00 – 22:00',
+    order_number: '123456789',
+    initial_km: 200,
+    final_km: 500,
+    total_km: 300,
+    total_time: '14h 48m',
+    meals_count: 4,
+    actual_departure_date: '2026-10-14',
+    actual_arrival_date: '2026-10-15',
+    arrival_at_factory_time: '10:49',
+    loading_start_time: '10:49',
+    loading_end_time: '10:49',
+    created_by: 'usr_dev_master',
+    created_at: '2026-10-14T13:43:40.941Z',
+    updated_at: '2026-10-14T13:48:48.212Z'
   }
 ];
 
@@ -109,58 +208,76 @@ function safeSetItem<T>(key: string, value: T): void {
 }
 
 export const localDataStore = {
+  // Purge outdated mock keys from older versions to ensure clean operational state
+  cleanLegacyMocks(): void {
+    try {
+      const legacyKeys = [
+        'gestao_puxada_users_store_v3',
+        'gestao_puxada_users_store_v4',
+        'gestao_puxada_vehicles_store_v3',
+        'gestao_puxada_vehicles_store_v4',
+        'gestao_puxada_factories_store_v3',
+        'gestao_puxada_factories_store_v4',
+        'gestao_puxada_trips_store_v3',
+        'gestao_puxada_trips_store_v4',
+      ];
+      legacyKeys.forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+
   // Initialize and sync with Firebase Firestore on app load
   async initFirebaseSync(): Promise<void> {
+    this.cleanLegacyMocks();
     try {
       // 1. Users
       const fbUsers = await firebaseSync.getAllItems('users');
       const localUsers = this.getUsers();
-      const mergedUsersMap = new Map<string, User>();
-      DEFAULT_USERS.forEach(u => mergedUsersMap.set(u.id, u));
-      localUsers.forEach(u => mergedUsersMap.set(u.id, u));
-      if (Array.isArray(fbUsers)) {
-        fbUsers.forEach(u => mergedUsersMap.set(u.id, u));
+      const userMap = new Map<string, User>();
+      REAL_USERS.forEach(u => userMap.set(u.id, u));
+      localUsers.forEach(u => userMap.set(u.id, u));
+      if (Array.isArray(fbUsers) && fbUsers.length > 0) {
+        fbUsers.forEach(u => userMap.set(u.id, u));
       }
-      const finalUsers = Array.from(mergedUsersMap.values());
+      const finalUsers = Array.from(userMap.values());
       this.saveUsers(finalUsers);
       firebaseSync.syncBatch('users', finalUsers).catch(() => {});
 
       // 2. Vehicles
       const fbVehicles = await firebaseSync.getAllItems('vehicles');
       const localVehicles = this.getVehicles();
-      const mergedVehiclesMap = new Map<string, Vehicle>();
-      DEFAULT_VEHICLES.forEach(v => mergedVehiclesMap.set(v.id, v));
-      localVehicles.forEach(v => mergedVehiclesMap.set(v.id, v));
-      if (Array.isArray(fbVehicles)) {
-        fbVehicles.forEach(v => mergedVehiclesMap.set(v.id, v));
+      const vehMap = new Map<string, Vehicle>();
+      REAL_VEHICLES.forEach(v => vehMap.set(v.id, v));
+      localVehicles.forEach(v => vehMap.set(v.id, v));
+      if (Array.isArray(fbVehicles) && fbVehicles.length > 0) {
+        fbVehicles.forEach(v => vehMap.set(v.id, v));
       }
-      const finalVehicles = Array.from(mergedVehiclesMap.values());
+      const finalVehicles = Array.from(vehMap.values());
       this.saveVehicles(finalVehicles);
       firebaseSync.syncBatch('vehicles', finalVehicles).catch(() => {});
 
       // 3. Factories
       const fbFactories = await firebaseSync.getAllItems('factories');
       const localFactories = this.getFactories();
-      const mergedFactoriesMap = new Map<string, Factory>();
-      DEFAULT_FACTORIES.forEach(f => mergedFactoriesMap.set(f.id, f));
-      localFactories.forEach(f => mergedFactoriesMap.set(f.id, f));
-      if (Array.isArray(fbFactories)) {
-        fbFactories.forEach(f => mergedFactoriesMap.set(f.id, f));
+      const facMap = new Map<string, Factory>();
+      REAL_FACTORIES.forEach(f => facMap.set(f.id, f));
+      localFactories.forEach(f => facMap.set(f.id, f));
+      if (Array.isArray(fbFactories) && fbFactories.length > 0) {
+        fbFactories.forEach(f => facMap.set(f.id, f));
       }
-      const finalFactories = Array.from(mergedFactoriesMap.values());
+      const finalFactories = Array.from(facMap.values());
       this.saveFactories(finalFactories);
       firebaseSync.syncBatch('factories', finalFactories).catch(() => {});
 
       // 4. Trips
       const fbTrips = await firebaseSync.getAllItems('trips');
       const localTrips = this.getTrips();
-      const mergedTripsMap = new Map<string, Trip>();
-      DEFAULT_TRIPS.forEach(t => mergedTripsMap.set(t.id, t));
-      localTrips.forEach(t => mergedTripsMap.set(t.id, t));
-      if (Array.isArray(fbTrips)) {
-        fbTrips.forEach(t => mergedTripsMap.set(t.id, t));
+      const tripMap = new Map<string, Trip>();
+      REAL_TRIPS.forEach(t => tripMap.set(t.id, t));
+      localTrips.forEach(t => tripMap.set(t.id, t));
+      if (Array.isArray(fbTrips) && fbTrips.length > 0) {
+        fbTrips.forEach(t => tripMap.set(t.id, t));
       }
-      const finalTrips = Array.from(mergedTripsMap.values());
+      const finalTrips = Array.from(tripMap.values());
       this.saveTrips(finalTrips);
       firebaseSync.syncBatch('trips', finalTrips).catch(() => {});
     } catch (err) {
@@ -170,11 +287,10 @@ export const localDataStore = {
 
   // --- USERS ---
   getUsers(): User[] {
-    const users = safeGetItem<User[]>(USERS_STORAGE_KEY, DEFAULT_USERS);
-    // Ensure all default users exist
+    const users = safeGetItem<User[]>(USERS_STORAGE_KEY, REAL_USERS);
     const map = new Map<string, User>();
-    DEFAULT_USERS.forEach(u => map.set(u.login?.toUpperCase() || u.id, u));
-    users.forEach(u => map.set(u.login?.toUpperCase() || u.id, u));
+    REAL_USERS.forEach(u => map.set(u.id, u));
+    users.forEach(u => map.set(u.id, u));
     return Array.from(map.values());
   },
 
@@ -184,7 +300,7 @@ export const localDataStore = {
 
   addUser(user: User): User[] {
     const current = this.getUsers();
-    const existingIndex = current.findIndex(u => u.id === user.id || (u.login && u.login.toUpperCase() === user.login.toUpperCase()));
+    const existingIndex = current.findIndex(u => u.id === user.id || (u.login && user.login && u.login.toUpperCase() === user.login.toUpperCase()));
     let updated: User[];
     if (existingIndex >= 0) {
       updated = [...current];
@@ -221,12 +337,10 @@ export const localDataStore = {
   mergeUsers(apiUsers: User[]): User[] {
     if (!Array.isArray(apiUsers)) return this.getUsers();
     const local = this.getUsers();
-    
-    const mergedMap = new Map<string, User>();
-    local.forEach(u => mergedMap.set(u.id, u));
-    apiUsers.forEach(u => mergedMap.set(u.id, u));
-
-    const result = Array.from(mergedMap.values());
+    const map = new Map<string, User>();
+    local.forEach(u => map.set(u.id, u));
+    apiUsers.forEach(u => map.set(u.id, u));
+    const result = Array.from(map.values());
     this.saveUsers(result);
     firebaseSync.syncBatch('users', result).catch(() => {});
     return result;
@@ -234,7 +348,7 @@ export const localDataStore = {
 
   // --- VEHICLES ---
   getVehicles(): Vehicle[] {
-    return safeGetItem<Vehicle[]>(VEHICLES_STORAGE_KEY, DEFAULT_VEHICLES);
+    return safeGetItem<Vehicle[]>(VEHICLES_STORAGE_KEY, REAL_VEHICLES);
   },
 
   saveVehicles(vehicles: Vehicle[]): void {
@@ -243,7 +357,7 @@ export const localDataStore = {
 
   addVehicle(vehicle: Vehicle): Vehicle[] {
     const current = this.getVehicles();
-    const existingIndex = current.findIndex(v => v.id === vehicle.id || (v.plate && v.plate.toUpperCase() === vehicle.plate.toUpperCase()));
+    const existingIndex = current.findIndex(v => v.id === vehicle.id || (v.plate && vehicle.plate && v.plate.toUpperCase() === vehicle.plate.toUpperCase()));
     let updated: Vehicle[];
     if (existingIndex >= 0) {
       updated = [...current];
@@ -280,12 +394,10 @@ export const localDataStore = {
   mergeVehicles(apiVehicles: Vehicle[]): Vehicle[] {
     if (!Array.isArray(apiVehicles)) return this.getVehicles();
     const local = this.getVehicles();
-    
-    const mergedMap = new Map<string, Vehicle>();
-    local.forEach(v => mergedMap.set(v.id, v));
-    apiVehicles.forEach(v => mergedMap.set(v.id, v));
-
-    const result = Array.from(mergedMap.values());
+    const map = new Map<string, Vehicle>();
+    local.forEach(v => map.set(v.id, v));
+    apiVehicles.forEach(v => map.set(v.id, v));
+    const result = Array.from(map.values());
     this.saveVehicles(result);
     firebaseSync.syncBatch('vehicles', result).catch(() => {});
     return result;
@@ -293,7 +405,7 @@ export const localDataStore = {
 
   // --- FACTORIES ---
   getFactories(): Factory[] {
-    return safeGetItem<Factory[]>(FACTORIES_STORAGE_KEY, DEFAULT_FACTORIES);
+    return safeGetItem<Factory[]>(FACTORIES_STORAGE_KEY, REAL_FACTORIES);
   },
 
   saveFactories(factories: Factory[]): void {
@@ -302,7 +414,7 @@ export const localDataStore = {
 
   addFactory(factory: Factory): Factory[] {
     const current = this.getFactories();
-    const existingIndex = current.findIndex(f => f.id === factory.id || (f.factory_code && f.factory_code.toUpperCase() === factory.factory_code.toUpperCase()));
+    const existingIndex = current.findIndex(f => f.id === factory.id || (f.factory_code && factory.factory_code && f.factory_code.toUpperCase() === factory.factory_code.toUpperCase()));
     let updated: Factory[];
     if (existingIndex >= 0) {
       updated = [...current];
@@ -339,12 +451,10 @@ export const localDataStore = {
   mergeFactories(apiFactories: Factory[]): Factory[] {
     if (!Array.isArray(apiFactories)) return this.getFactories();
     const local = this.getFactories();
-    
-    const mergedMap = new Map<string, Factory>();
-    local.forEach(f => mergedMap.set(f.id, f));
-    apiFactories.forEach(f => mergedMap.set(f.id, f));
-
-    const result = Array.from(mergedMap.values());
+    const map = new Map<string, Factory>();
+    local.forEach(f => map.set(f.id, f));
+    apiFactories.forEach(f => map.set(f.id, f));
+    const result = Array.from(map.values());
     this.saveFactories(result);
     firebaseSync.syncBatch('factories', result).catch(() => {});
     return result;
@@ -352,10 +462,10 @@ export const localDataStore = {
 
   // --- DRIVERS ---
   getDrivers(): any[] {
-    const drivers = safeGetItem<any[]>(DRIVERS_STORAGE_KEY, DEFAULT_DRIVERS);
-    // Also include any users with role MOTORISTA
+    const drivers = safeGetItem<any[]>(DRIVERS_STORAGE_KEY, REAL_DRIVERS);
     const users = this.getUsers().filter(u => u.role === 'MOTORISTA');
     const map = new Map<string, any>();
+    REAL_DRIVERS.forEach(d => map.set(d.id, d));
     drivers.forEach(d => map.set(d.id, d));
     users.forEach(u => {
       const drvId = u.driver_id || `drv_${u.login?.toLowerCase() || u.id}`;
@@ -365,11 +475,11 @@ export const localDataStore = {
           user_id: u.id,
           name: u.name,
           registration: u.login,
-          phone: u.phone || '(11) 99999-9999',
-          cnh: '12345678900',
+          phone: u.phone || '',
+          cnh: '',
           cnh_category: 'E',
           status: 'Ativo',
-          default_vehicle_id: 'veh_1'
+          default_vehicle_id: 'veh_1791467976230_s735'
         });
       }
     });
@@ -387,9 +497,16 @@ export const localDataStore = {
     return updated;
   },
 
+  removeDriver(id: string): any[] {
+    const current = this.getDrivers();
+    const updated = current.filter(d => d.id !== id);
+    this.saveDrivers(updated);
+    return updated;
+  },
+
   // --- TRIPS ---
   getTrips(): Trip[] {
-    return safeGetItem<Trip[]>(TRIPS_STORAGE_KEY, DEFAULT_TRIPS);
+    return safeGetItem<Trip[]>(TRIPS_STORAGE_KEY, REAL_TRIPS);
   },
 
   saveTrips(trips: Trip[]): void {
@@ -468,6 +585,13 @@ export const localDataStore = {
   addSchedule(schedule: any): any[] {
     const current = this.getSchedules();
     const updated = [schedule, ...current.filter(s => s.id !== schedule.id)];
+    this.saveSchedules(updated);
+    return updated;
+  },
+
+  removeSchedule(id: string): any[] {
+    const current = this.getSchedules();
+    const updated = current.filter(s => s.id !== id);
     this.saveSchedules(updated);
     return updated;
   }
