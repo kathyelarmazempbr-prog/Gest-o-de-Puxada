@@ -425,6 +425,43 @@ export const localDataStore = {
       safeSetItem(FACTORIES_STORAGE_KEY, Array.from(map.values()));
     });
 
+    // Real-time Users Listener
+    firebaseSync.subscribeCollection('users', (fbUsers) => {
+      const deletedSet = getDeletedIdSet();
+      const current = this.getUsers();
+      const map = new Map<string, User>();
+      REAL_USERS.forEach(u => {
+        if (!deletedSet.has(u.id)) map.set(u.id, u);
+      });
+      current.forEach(u => {
+        if (!deletedSet.has(u.id)) map.set(u.id, u);
+      });
+      fbUsers.forEach(u => {
+        if (u && u.id && !deletedSet.has(u.id)) {
+          map.set(u.id, { ...(map.get(u.id) || {}), ...u });
+        }
+      });
+      safeSetItem(USERS_STORAGE_KEY, Array.from(map.values()));
+      window.dispatchEvent(new CustomEvent('puxada:user-updated'));
+    });
+
+    // Real-time Drivers Listener
+    firebaseSync.subscribeCollection('drivers', (fbDrivers) => {
+      const deletedSet = getDeletedIdSet();
+      const current = this.getDrivers();
+      const map = new Map<string, any>();
+      current.forEach(d => {
+        if (!deletedSet.has(d.id)) map.set(d.id, d);
+      });
+      fbDrivers.forEach(d => {
+        if (d && d.id && !deletedSet.has(d.id)) {
+          map.set(d.id, { ...(map.get(d.id) || {}), ...d });
+        }
+      });
+      safeSetItem(DRIVERS_STORAGE_KEY, Array.from(map.values()));
+      window.dispatchEvent(new CustomEvent('puxada:driver-updated'));
+    });
+
     // Real-time Deleted Records (Tombstones) Listener
     firebaseSync.subscribeCollection('deleted_records', (records) => {
       const set = getDeletedIdSet();
