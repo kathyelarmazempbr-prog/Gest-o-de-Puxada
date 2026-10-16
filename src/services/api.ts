@@ -268,6 +268,7 @@ export const api = {
   },
 
   deleteUser: async (id: string) => {
+    localDataStore.removeUser(id);
     if (!isStaticEnvironment()) {
       try {
         await request<{ message: string }>(`/api/users/${id}`, {
@@ -277,7 +278,6 @@ export const api = {
         console.warn('API deleteUser failed, removing locally:', e);
       }
     }
-    localDataStore.removeUser(id);
     return { message: 'Usuário excluído com sucesso' };
   },
 
@@ -361,6 +361,7 @@ export const api = {
   },
 
   deleteFactory: async (id: string) => {
+    localDataStore.removeFactory(id);
     if (!isStaticEnvironment()) {
       try {
         await request<{ message: string }>(`/api/factories/${id}`, {
@@ -370,7 +371,6 @@ export const api = {
         console.warn('API deleteFactory failed, removing locally:', e);
       }
     }
-    localDataStore.removeFactory(id);
     return { message: 'Fábrica excluída com sucesso' };
   },
 
@@ -465,6 +465,7 @@ export const api = {
   },
 
   deleteVehicle: async (id: string) => {
+    localDataStore.removeVehicle(id);
     if (!isStaticEnvironment()) {
       try {
         await request<{ message: string }>(`/api/vehicles/${id}`, {
@@ -474,7 +475,6 @@ export const api = {
         console.warn('API deleteVehicle failed, removing locally:', e);
       }
     }
-    localDataStore.removeVehicle(id);
     return { message: 'Veículo excluído com sucesso' };
   },
 
@@ -550,6 +550,7 @@ export const api = {
   },
 
   deleteDriver: async (id: string) => {
+    localDataStore.removeDriver(id);
     if (!isStaticEnvironment()) {
       try {
         await request<{ message: string }>(`/api/drivers/${id}`, {
@@ -559,7 +560,6 @@ export const api = {
         console.warn('API deleteDriver failed, removing locally:', e);
       }
     }
-    localDataStore.removeDriver(id);
     return { message: 'Motorista excluído com sucesso' };
   },
 
@@ -586,20 +586,45 @@ export const api = {
   },
 
   createTrip: async (data: any) => {
+    // Enrich with driver, vehicle and factory details if missing
+    const drivers = localDataStore.getDrivers();
+    const vehicles = localDataStore.getVehicles();
+    const factories = localDataStore.getFactories();
+
+    const selectedDriver = drivers.find(d => d.id === data.driver_id || d.user_id === data.driver_id || d.registration === data.driver_id);
+    const selectedVehicle = vehicles.find(v => v.id === data.vehicle_id || v.plate === data.vehicle_id);
+    const selectedFactory = factories.find(f => f.id === data.factory_id || f.factory_code === data.factory_id);
+
+    const enrichedTrip: any = {
+      ...data,
+      driver_name: data.driver_name || selectedDriver?.name || '',
+      driver_registration: data.driver_registration || selectedDriver?.registration || '',
+      driver_phone: data.driver_phone || selectedDriver?.phone || '',
+      vehicle_plate: data.vehicle_plate || selectedVehicle?.plate || '',
+      vehicle_model: data.vehicle_model || selectedVehicle?.model || '',
+      factory_name: data.factory_name || selectedFactory?.name || '',
+      factory_code: data.factory_code || selectedFactory?.factory_code || '',
+      factory_city: data.factory_city || selectedFactory?.city || '',
+      factory_state: data.factory_state || selectedFactory?.state || '',
+      status: data.status || 'Programada',
+    };
+
     let newId = `trp_${Date.now()}`;
     if (!isStaticEnvironment()) {
       try {
         const res = await request<{ id: string; message: string }>('/api/trips', {
           method: 'POST',
-          body: JSON.stringify(data),
+          body: JSON.stringify(enrichedTrip),
         });
         if (res?.id) newId = res.id;
       } catch (e) {
         console.warn('API createTrip failed, saving locally:', e);
       }
     }
-    localDataStore.addTrip({ ...data, id: newId, status: data.status || 'Programada' } as any);
-    return { id: newId, message: 'Viagem criada com sucesso' };
+    enrichedTrip.id = newId;
+    localDataStore.addTrip(enrichedTrip as any);
+    window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
+    return { id: newId, message: 'Viagem criada com sucesso', trip: enrichedTrip };
   },
 
   updateTrip: async (id: string, data: any) => {
@@ -794,6 +819,10 @@ export const api = {
   },
 
   deleteTrip: async (id: string, tripMeta?: any) => {
+    // 1. Permanently remove from local storage and mark tombstone in Firestore
+    localDataStore.removeTrip(id, tripMeta);
+
+    // 2. Also call backend endpoint if not in pure static mode
     if (!isStaticEnvironment()) {
       try {
         await request<{ message: string }>(`/api/trips/${encodeURIComponent(id)}`, {
@@ -801,10 +830,10 @@ export const api = {
           body: tripMeta ? JSON.stringify(tripMeta) : undefined,
         });
       } catch (e) {
-        console.warn('API deleteTrip failed, removing locally:', e);
+        console.warn('API deleteTrip server call failed, removed locally and synced to Firebase:', e);
       }
     }
-    localDataStore.removeTrip(id, tripMeta);
+    window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
     return { message: 'Viagem excluída com sucesso' };
   },
 

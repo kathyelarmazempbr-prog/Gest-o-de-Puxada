@@ -7,6 +7,7 @@ const FACTORIES_STORAGE_KEY = 'gestao_puxada_factories_store_v5';
 const TRIPS_STORAGE_KEY = 'gestao_puxada_trips_store_v5';
 const DRIVERS_STORAGE_KEY = 'gestao_puxada_drivers_store_v5';
 const SCHEDULES_STORAGE_KEY = 'gestao_puxada_schedules_store_v5';
+const DELETED_IDS_STORAGE_KEY = 'gestao_puxada_deleted_records_v5';
 
 // Real operational data from gestao_puxada_backup.json
 export const REAL_USERS: User[] = [
@@ -184,15 +185,38 @@ export const REAL_TRIPS: Trip[] = [
   }
 ];
 
+function getDeletedIdSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDeletedIdSet(set: Set<string>): void {
+  try {
+    localStorage.setItem(DELETED_IDS_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
 function safeGetItem<T>(key: string, fallback: T): T {
   try {
     const item = localStorage.getItem(key);
-    if (!item) return fallback;
-    const parsed = JSON.parse(item);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed as unknown as T;
+    const deletedSet = getDeletedIdSet();
+    if (item === null) {
+      if (Array.isArray(fallback)) {
+        return fallback.filter((x: any) => !deletedSet.has(x.id)) as unknown as T;
+      }
+      return fallback;
     }
-    return fallback;
+    const parsed = JSON.parse(item);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((x: any) => !deletedSet.has(x.id)) as unknown as T;
+    }
+    return parsed as unknown as T;
   } catch (err) {
     console.warn(`[LocalDataStore] Error reading key ${key}:`, err);
     return fallback;
@@ -225,18 +249,54 @@ export const localDataStore = {
     } catch {}
   },
 
+  // Mark record ID as permanently deleted so it never resurrects across syncs
+  markAsDeleted(id: string, collectionName: string): void {
+    if (!id) return;
+    const set = getDeletedIdSet();
+    set.add(id);
+    saveDeletedIdSet(set);
+    firebaseSync.deleteItem(collectionName, id).catch(() => {});
+    firebaseSync.saveItem('deleted_records', id, { id, collection: collectionName, deletedAt: new Date().toISOString() }).catch(() => {});
+  },
+
+  unmarkDeleted(id: string): void {
+    if (!id) return;
+    const set = getDeletedIdSet();
+    if (set.has(id)) {
+      set.delete(id);
+      saveDeletedIdSet(set);
+      firebaseSync.deleteItem('deleted_records', id).catch(() => {});
+    }
+  },
+
   // Initialize and sync with Firebase Firestore on app load
   async initFirebaseSync(): Promise<void> {
     this.cleanLegacyMocks();
     try {
+      // 0. Load tombstones (deleted records) first from Firebase
+      const fbDeleted = await firebaseSync.getAllItems('deleted_records');
+      const localDeleted = getDeletedIdSet();
+      if (Array.isArray(fbDeleted)) {
+        fbDeleted.forEach(d => {
+          if (d && d.id) localDeleted.add(d.id);
+        });
+      }
+      saveDeletedIdSet(localDeleted);
+
       // 1. Users
       const fbUsers = await firebaseSync.getAllItems('users');
       const localUsers = this.getUsers();
       const userMap = new Map<string, User>();
-      REAL_USERS.forEach(u => userMap.set(u.id, u));
-      localUsers.forEach(u => userMap.set(u.id, u));
+      REAL_USERS.forEach(u => {
+        if (!localDeleted.has(u.id)) userMap.set(u.id, u);
+      });
+      localUsers.forEach(u => {
+        if (!localDeleted.has(u.id)) userMap.set(u.id, u);
+      });
       if (Array.isArray(fbUsers) && fbUsers.length > 0) {
-        fbUsers.forEach(u => userMap.set(u.id, u));
+        fbUsers.forEach(u => {
+          if (u && u.id && !localDeleted.has(u.id)) userMap.set(u.id, u);
+        });
       }
       const finalUsers = Array.from(userMap.values());
       this.saveUsers(finalUsers);
@@ -246,10 +306,16 @@ export const localDataStore = {
       const fbVehicles = await firebaseSync.getAllItems('vehicles');
       const localVehicles = this.getVehicles();
       const vehMap = new Map<string, Vehicle>();
-      REAL_VEHICLES.forEach(v => vehMap.set(v.id, v));
-      localVehicles.forEach(v => vehMap.set(v.id, v));
+      REAL_VEHICLES.forEach(v => {
+        if (!localDeleted.has(v.id)) vehMap.set(v.id, v);
+      });
+      localVehicles.forEach(v => {
+        if (!localDeleted.has(v.id)) vehMap.set(v.id, v);
+      });
       if (Array.isArray(fbVehicles) && fbVehicles.length > 0) {
-        fbVehicles.forEach(v => vehMap.set(v.id, v));
+        fbVehicles.forEach(v => {
+          if (v && v.id && !localDeleted.has(v.id)) vehMap.set(v.id, v);
+        });
       }
       const finalVehicles = Array.from(vehMap.values());
       this.saveVehicles(finalVehicles);
@@ -259,10 +325,16 @@ export const localDataStore = {
       const fbFactories = await firebaseSync.getAllItems('factories');
       const localFactories = this.getFactories();
       const facMap = new Map<string, Factory>();
-      REAL_FACTORIES.forEach(f => facMap.set(f.id, f));
-      localFactories.forEach(f => facMap.set(f.id, f));
+      REAL_FACTORIES.forEach(f => {
+        if (!localDeleted.has(f.id)) facMap.set(f.id, f);
+      });
+      localFactories.forEach(f => {
+        if (!localDeleted.has(f.id)) facMap.set(f.id, f);
+      });
       if (Array.isArray(fbFactories) && fbFactories.length > 0) {
-        fbFactories.forEach(f => facMap.set(f.id, f));
+        fbFactories.forEach(f => {
+          if (f && f.id && !localDeleted.has(f.id)) facMap.set(f.id, f);
+        });
       }
       const finalFactories = Array.from(facMap.values());
       this.saveFactories(finalFactories);
@@ -272,25 +344,120 @@ export const localDataStore = {
       const fbTrips = await firebaseSync.getAllItems('trips');
       const localTrips = this.getTrips();
       const tripMap = new Map<string, Trip>();
-      REAL_TRIPS.forEach(t => tripMap.set(t.id, t));
-      localTrips.forEach(t => tripMap.set(t.id, t));
+      REAL_TRIPS.forEach(t => {
+        if (!localDeleted.has(t.id)) tripMap.set(t.id, t);
+      });
+      localTrips.forEach(t => {
+        if (!localDeleted.has(t.id)) tripMap.set(t.id, t);
+      });
       if (Array.isArray(fbTrips) && fbTrips.length > 0) {
-        fbTrips.forEach(t => tripMap.set(t.id, t));
+        fbTrips.forEach(t => {
+          if (t && t.id && !localDeleted.has(t.id)) tripMap.set(t.id, t);
+        });
       }
       const finalTrips = Array.from(tripMap.values());
       this.saveTrips(finalTrips);
       firebaseSync.syncBatch('trips', finalTrips).catch(() => {});
+
+      // Trigger app-wide refresh so any open page receives the latest synchronized state
+      window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
+      window.dispatchEvent(new CustomEvent('puxada:data-synced'));
+
+      // 5. Establish real-time Firestore listeners for immediate updates across all devices
+      this.setupRealtimeListeners();
     } catch (err) {
       console.warn('[LocalDataStore] Error during Firebase sync init:', err);
     }
   },
 
+  _realtimeInitialized: false,
+  setupRealtimeListeners(): void {
+    if (this._realtimeInitialized) return;
+    this._realtimeInitialized = true;
+
+    // Real-time Trips Listener
+    firebaseSync.subscribeCollection('trips', (fbTrips) => {
+      const deletedSet = getDeletedIdSet();
+      const current = this.getTrips();
+      const map = new Map<string, Trip>();
+      current.forEach(t => {
+        if (!deletedSet.has(t.id)) map.set(t.id, t);
+      });
+      fbTrips.forEach(t => {
+        if (t && t.id && !deletedSet.has(t.id)) {
+          map.set(t.id, { ...(map.get(t.id) || {}), ...t });
+        }
+      });
+      const updated = Array.from(map.values());
+      safeSetItem(TRIPS_STORAGE_KEY, updated);
+      window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
+    });
+
+    // Real-time Vehicles Listener
+    firebaseSync.subscribeCollection('vehicles', (fbVehicles) => {
+      const deletedSet = getDeletedIdSet();
+      const current = this.getVehicles();
+      const map = new Map<string, Vehicle>();
+      current.forEach(v => {
+        if (!deletedSet.has(v.id)) map.set(v.id, v);
+      });
+      fbVehicles.forEach(v => {
+        if (v && v.id && !deletedSet.has(v.id)) {
+          map.set(v.id, { ...(map.get(v.id) || {}), ...v });
+        }
+      });
+      safeSetItem(VEHICLES_STORAGE_KEY, Array.from(map.values()));
+    });
+
+    // Real-time Factories Listener
+    firebaseSync.subscribeCollection('factories', (fbFactories) => {
+      const deletedSet = getDeletedIdSet();
+      const current = this.getFactories();
+      const map = new Map<string, Factory>();
+      current.forEach(f => {
+        if (!deletedSet.has(f.id)) map.set(f.id, f);
+      });
+      fbFactories.forEach(f => {
+        if (f && f.id && !deletedSet.has(f.id)) {
+          map.set(f.id, { ...(map.get(f.id) || {}), ...f });
+        }
+      });
+      safeSetItem(FACTORIES_STORAGE_KEY, Array.from(map.values()));
+    });
+
+    // Real-time Deleted Records (Tombstones) Listener
+    firebaseSync.subscribeCollection('deleted_records', (records) => {
+      const set = getDeletedIdSet();
+      let changed = false;
+      records.forEach(r => {
+        if (r && r.id && !set.has(r.id)) {
+          set.add(r.id);
+          changed = true;
+        }
+      });
+      if (changed) {
+        saveDeletedIdSet(set);
+        // Purge deleted records from memory and dispatch update
+        this.saveTrips(this.getTrips().filter(t => !set.has(t.id)));
+        this.saveVehicles(this.getVehicles().filter(v => !set.has(v.id)));
+        this.saveFactories(this.getFactories().filter(f => !set.has(f.id)));
+        this.saveUsers(this.getUsers().filter(u => !set.has(u.id)));
+        window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
+      }
+    });
+  },
+
   // --- USERS ---
   getUsers(): User[] {
+    const deletedSet = getDeletedIdSet();
     const users = safeGetItem<User[]>(USERS_STORAGE_KEY, REAL_USERS);
     const map = new Map<string, User>();
-    REAL_USERS.forEach(u => map.set(u.id, u));
-    users.forEach(u => map.set(u.id, u));
+    REAL_USERS.forEach(u => {
+      if (!deletedSet.has(u.id)) map.set(u.id, u);
+    });
+    users.forEach(u => {
+      if (!deletedSet.has(u.id)) map.set(u.id, u);
+    });
     return Array.from(map.values());
   },
 
@@ -299,6 +466,7 @@ export const localDataStore = {
   },
 
   addUser(user: User): User[] {
+    this.unmarkDeleted(user.id);
     const current = this.getUsers();
     const existingIndex = current.findIndex(u => u.id === user.id || (u.login && user.login && u.login.toUpperCase() === user.login.toUpperCase()));
     let updated: User[];
@@ -327,6 +495,7 @@ export const localDataStore = {
   },
 
   removeUser(id: string): User[] {
+    this.markAsDeleted(id, 'users');
     const current = this.getUsers();
     const updated = current.filter(u => u.id !== id);
     this.saveUsers(updated);
@@ -336,10 +505,15 @@ export const localDataStore = {
 
   mergeUsers(apiUsers: User[]): User[] {
     if (!Array.isArray(apiUsers)) return this.getUsers();
+    const deletedSet = getDeletedIdSet();
     const local = this.getUsers();
     const map = new Map<string, User>();
-    local.forEach(u => map.set(u.id, u));
-    apiUsers.forEach(u => map.set(u.id, u));
+    local.forEach(u => {
+      if (!deletedSet.has(u.id)) map.set(u.id, u);
+    });
+    apiUsers.forEach(u => {
+      if (!deletedSet.has(u.id)) map.set(u.id, u);
+    });
     const result = Array.from(map.values());
     this.saveUsers(result);
     firebaseSync.syncBatch('users', result).catch(() => {});
@@ -348,7 +522,9 @@ export const localDataStore = {
 
   // --- VEHICLES ---
   getVehicles(): Vehicle[] {
-    return safeGetItem<Vehicle[]>(VEHICLES_STORAGE_KEY, REAL_VEHICLES);
+    const deletedSet = getDeletedIdSet();
+    const vehicles = safeGetItem<Vehicle[]>(VEHICLES_STORAGE_KEY, REAL_VEHICLES);
+    return vehicles.filter(v => !deletedSet.has(v.id));
   },
 
   saveVehicles(vehicles: Vehicle[]): void {
@@ -356,6 +532,7 @@ export const localDataStore = {
   },
 
   addVehicle(vehicle: Vehicle): Vehicle[] {
+    this.unmarkDeleted(vehicle.id);
     const current = this.getVehicles();
     const existingIndex = current.findIndex(v => v.id === vehicle.id || (v.plate && vehicle.plate && v.plate.toUpperCase() === vehicle.plate.toUpperCase()));
     let updated: Vehicle[];
@@ -384,6 +561,7 @@ export const localDataStore = {
   },
 
   removeVehicle(id: string): Vehicle[] {
+    this.markAsDeleted(id, 'vehicles');
     const current = this.getVehicles();
     const updated = current.filter(v => v.id !== id);
     this.saveVehicles(updated);
@@ -393,10 +571,15 @@ export const localDataStore = {
 
   mergeVehicles(apiVehicles: Vehicle[]): Vehicle[] {
     if (!Array.isArray(apiVehicles)) return this.getVehicles();
+    const deletedSet = getDeletedIdSet();
     const local = this.getVehicles();
     const map = new Map<string, Vehicle>();
-    local.forEach(v => map.set(v.id, v));
-    apiVehicles.forEach(v => map.set(v.id, v));
+    local.forEach(v => {
+      if (!deletedSet.has(v.id)) map.set(v.id, v);
+    });
+    apiVehicles.forEach(v => {
+      if (!deletedSet.has(v.id)) map.set(v.id, v);
+    });
     const result = Array.from(map.values());
     this.saveVehicles(result);
     firebaseSync.syncBatch('vehicles', result).catch(() => {});
@@ -405,7 +588,9 @@ export const localDataStore = {
 
   // --- FACTORIES ---
   getFactories(): Factory[] {
-    return safeGetItem<Factory[]>(FACTORIES_STORAGE_KEY, REAL_FACTORIES);
+    const deletedSet = getDeletedIdSet();
+    const factories = safeGetItem<Factory[]>(FACTORIES_STORAGE_KEY, REAL_FACTORIES);
+    return factories.filter(f => !deletedSet.has(f.id));
   },
 
   saveFactories(factories: Factory[]): void {
@@ -413,6 +598,7 @@ export const localDataStore = {
   },
 
   addFactory(factory: Factory): Factory[] {
+    this.unmarkDeleted(factory.id);
     const current = this.getFactories();
     const existingIndex = current.findIndex(f => f.id === factory.id || (f.factory_code && factory.factory_code && f.factory_code.toUpperCase() === factory.factory_code.toUpperCase()));
     let updated: Factory[];
@@ -441,6 +627,7 @@ export const localDataStore = {
   },
 
   removeFactory(id: string): Factory[] {
+    this.markAsDeleted(id, 'factories');
     const current = this.getFactories();
     const updated = current.filter(f => f.id !== id);
     this.saveFactories(updated);
@@ -450,10 +637,15 @@ export const localDataStore = {
 
   mergeFactories(apiFactories: Factory[]): Factory[] {
     if (!Array.isArray(apiFactories)) return this.getFactories();
+    const deletedSet = getDeletedIdSet();
     const local = this.getFactories();
     const map = new Map<string, Factory>();
-    local.forEach(f => map.set(f.id, f));
-    apiFactories.forEach(f => map.set(f.id, f));
+    local.forEach(f => {
+      if (!deletedSet.has(f.id)) map.set(f.id, f);
+    });
+    apiFactories.forEach(f => {
+      if (!deletedSet.has(f.id)) map.set(f.id, f);
+    });
     const result = Array.from(map.values());
     this.saveFactories(result);
     firebaseSync.syncBatch('factories', result).catch(() => {});
@@ -462,14 +654,19 @@ export const localDataStore = {
 
   // --- DRIVERS ---
   getDrivers(): any[] {
+    const deletedSet = getDeletedIdSet();
     const drivers = safeGetItem<any[]>(DRIVERS_STORAGE_KEY, REAL_DRIVERS);
-    const users = this.getUsers().filter(u => u.role === 'MOTORISTA');
+    const users = this.getUsers().filter(u => u.role === 'MOTORISTA' && !deletedSet.has(u.id));
     const map = new Map<string, any>();
-    REAL_DRIVERS.forEach(d => map.set(d.id, d));
-    drivers.forEach(d => map.set(d.id, d));
+    REAL_DRIVERS.forEach(d => {
+      if (!deletedSet.has(d.id)) map.set(d.id, d);
+    });
+    drivers.forEach(d => {
+      if (!deletedSet.has(d.id)) map.set(d.id, d);
+    });
     users.forEach(u => {
       const drvId = u.driver_id || `drv_${u.login?.toLowerCase() || u.id}`;
-      if (!map.has(drvId)) {
+      if (!map.has(drvId) && !deletedSet.has(drvId)) {
         map.set(drvId, {
           id: drvId,
           user_id: u.id,
@@ -491,6 +688,7 @@ export const localDataStore = {
   },
 
   addDriver(driver: any): any[] {
+    this.unmarkDeleted(driver.id);
     const current = this.getDrivers();
     const updated = [driver, ...current.filter(d => d.id !== driver.id)];
     this.saveDrivers(updated);
@@ -498,6 +696,7 @@ export const localDataStore = {
   },
 
   removeDriver(id: string): any[] {
+    this.markAsDeleted(id, 'drivers');
     const current = this.getDrivers();
     const updated = current.filter(d => d.id !== id);
     this.saveDrivers(updated);
@@ -506,7 +705,9 @@ export const localDataStore = {
 
   // --- TRIPS ---
   getTrips(): Trip[] {
-    return safeGetItem<Trip[]>(TRIPS_STORAGE_KEY, REAL_TRIPS);
+    const deletedSet = getDeletedIdSet();
+    const trips = safeGetItem<Trip[]>(TRIPS_STORAGE_KEY, REAL_TRIPS);
+    return trips.filter(t => !deletedSet.has(t.id));
   },
 
   saveTrips(trips: Trip[]): void {
@@ -514,6 +715,7 @@ export const localDataStore = {
   },
 
   addTrip(trip: Trip): Trip[] {
+    this.unmarkDeleted(trip.id);
     const current = this.getTrips();
     const existingIndex = current.findIndex(t => t.id === trip.id);
     let updated: Trip[];
@@ -527,6 +729,7 @@ export const localDataStore = {
     if (trip && trip.id) {
       firebaseSync.saveItem('trips', trip.id, updated.find(t => t.id === trip.id) || trip).catch(() => {});
     }
+    window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
     return updated;
   },
 
@@ -538,10 +741,12 @@ export const localDataStore = {
     if (target) {
       firebaseSync.saveItem('trips', trip.id, target).catch(() => {});
     }
+    window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
     return updated;
   },
 
   removeTrip(id: string, tripMeta?: Partial<Trip>): Trip[] {
+    this.markAsDeleted(id, 'trips');
     const current = this.getTrips();
     const updated = current.filter(t => {
       if (t.id === id) return false;
@@ -551,6 +756,7 @@ export const localDataStore = {
         const matchVehicle = !tripMeta.vehicle_plate || t.vehicle_plate === tripMeta.vehicle_plate;
         const matchDep = !tripMeta.planned_departure || t.planned_departure === tripMeta.planned_departure;
         if (matchDate && matchDriver && matchVehicle && matchDep) {
+          if (t.id) this.markAsDeleted(t.id, 'trips');
           return false;
         }
       }
@@ -558,15 +764,21 @@ export const localDataStore = {
     });
     this.saveTrips(updated);
     firebaseSync.deleteItem('trips', id).catch(() => {});
+    window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
     return updated;
   },
 
   mergeTrips(apiTrips: Trip[]): Trip[] {
     if (!Array.isArray(apiTrips)) return this.getTrips();
+    const deletedSet = getDeletedIdSet();
     const local = this.getTrips();
     const map = new Map<string, Trip>();
-    local.forEach(t => map.set(t.id, t));
-    apiTrips.forEach(t => map.set(t.id, t));
+    local.forEach(t => {
+      if (!deletedSet.has(t.id)) map.set(t.id, t);
+    });
+    apiTrips.forEach(t => {
+      if (!deletedSet.has(t.id)) map.set(t.id, t);
+    });
     const result = Array.from(map.values());
     this.saveTrips(result);
     firebaseSync.syncBatch('trips', result).catch(() => {});
@@ -575,7 +787,9 @@ export const localDataStore = {
 
   // --- SCHEDULES ---
   getSchedules(): any[] {
-    return safeGetItem<any[]>(SCHEDULES_STORAGE_KEY, []);
+    const deletedSet = getDeletedIdSet();
+    const schedules = safeGetItem<any[]>(SCHEDULES_STORAGE_KEY, []);
+    return schedules.filter(s => !deletedSet.has(s.id));
   },
 
   saveSchedules(schedules: any[]): void {
@@ -583,6 +797,7 @@ export const localDataStore = {
   },
 
   addSchedule(schedule: any): any[] {
+    this.unmarkDeleted(schedule.id);
     const current = this.getSchedules();
     const updated = [schedule, ...current.filter(s => s.id !== schedule.id)];
     this.saveSchedules(updated);
@@ -590,6 +805,7 @@ export const localDataStore = {
   },
 
   removeSchedule(id: string): any[] {
+    this.markAsDeleted(id, 'schedules');
     const current = this.getSchedules();
     const updated = current.filter(s => s.id !== id);
     this.saveSchedules(updated);

@@ -17,7 +17,7 @@ authRouter.post('/login', (req, res) => {
   const user = queryOne<any>(
     `SELECT u.*, d.id as driver_id, d.name as driver_name, d.status as driver_status, d.cnh, d.cnh_category, d.cnh_expiration, d.default_vehicle_id, d.registration as driver_registration
      FROM users u
-     LEFT JOIN drivers d ON d.user_id = u.id
+     LEFT JOIN drivers d ON (d.user_id = u.id OR d.registration = u.login)
      WHERE LOWER(u.login) = LOWER(?) OR LOWER(u.email) = LOWER(?) OR LOWER(d.registration) = LOWER(?)
         OR (LOWER(?) = 'dev' AND u.role = 'DESENVOLVEDOR')`,
     [cleanIdentifier, cleanIdentifier, cleanIdentifier, cleanIdentifier]

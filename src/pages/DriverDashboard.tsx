@@ -25,7 +25,19 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
     setLoading(true);
     try {
       const allTrips = await api.getTrips();
-      setTrips(allTrips || []);
+      const myTrips = (allTrips || []).filter(t => {
+        if (!user || user.role !== 'MOTORISTA') return true;
+        const matchDriverId = t.driver_id && (
+          t.driver_id === user.driver_id ||
+          t.driver_id === user.id ||
+          t.driver_id.toLowerCase().includes(user.login?.toLowerCase() || '')
+        );
+        const matchUserId = (t as any).driver_user_id && (t as any).driver_user_id === user.id;
+        const matchReg = (t as any).driver_registration && user.login && (t as any).driver_registration.toUpperCase() === user.login.toUpperCase();
+        const matchName = t.driver_name && user.name && t.driver_name.toUpperCase() === user.name.toUpperCase();
+        return matchDriverId || matchUserId || matchReg || matchName;
+      });
+      setTrips(myTrips);
     } catch (err) {
       console.error('Erro ao carregar dados do dashboard do motorista:', err);
     } finally {
@@ -39,7 +51,7 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
     const handleUpdate = () => loadData();
     window.addEventListener('puxada:trip-updated', handleUpdate);
     return () => window.removeEventListener('puxada:trip-updated', handleUpdate);
-  }, []);
+  }, [user]);
 
   // In-progress trip
   const inProgressTrip = useMemo(() => {
@@ -258,6 +270,69 @@ export const DriverDashboard: React.FC<DriverDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Seção com Demais Viagens Programadas na Escala */}
+      {programmedTrips.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <span>Viagens Programadas na sua Escala ({programmedTrips.length})</span>
+            </h2>
+            {onNavigateToTrips && (
+              <button
+                onClick={onNavigateToTrips}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
+              >
+                <span>Ver todas</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {programmedTrips.map(pTrip => (
+              <div 
+                key={pTrip.id}
+                className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-800 dark:bg-zinc-900 flex flex-col justify-between gap-3 hover:border-blue-300 transition"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                      Programada
+                    </span>
+                    <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 font-mono">
+                      {pTrip.date.split('-').reverse().join('/')}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-sm font-black text-zinc-900 dark:text-white truncate">
+                    {pTrip.factory_name}
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5 truncate flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-zinc-400 shrink-0" />
+                    {pTrip.factory_city} - {pTrip.factory_state}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                    <span className="font-semibold text-zinc-400">Placa: </span>
+                    <span className="font-mono font-bold">{pTrip.vehicle_plate}</span>
+                  </div>
+                  <button
+                    onClick={() => onOpenTripDetails(pTrip)}
+                    className="flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300 transition"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    <span>Detalhes</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

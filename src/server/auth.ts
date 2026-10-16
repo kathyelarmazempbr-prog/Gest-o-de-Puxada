@@ -42,7 +42,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
 
     // If driver, check driver status as well
     if (user.role === 'MOTORISTA') {
-      const driver = queryOne(`SELECT id, status FROM drivers WHERE user_id = ?`, [user.id]);
+      const driver = queryOne<any>(`SELECT id, status FROM drivers WHERE user_id = ? OR registration = ?`, [user.id, (user as any).login]);
       if (driver) {
         decoded.driverId = driver.id;
         if (driver.status === 'Inativo') {

@@ -28,11 +28,18 @@ tripsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => 
 
   // RULE 9: Strict RBAC at backend level - Driver can only see their own trips!
   if (req.user?.role === 'MOTORISTA') {
-    if (!req.user.driverId) {
-      return res.json([]);
+    let dId = req.user.driverId;
+    if (!dId) {
+      const drv = queryOne<any>(`SELECT id FROM drivers WHERE user_id = ? OR registration = ?`, [req.user.userId, req.user.login]);
+      if (drv) dId = drv.id;
     }
-    sql += ` AND t.driver_id = ?`;
-    params.push(req.user.driverId);
+    if (dId) {
+      sql += ` AND (t.driver_id = ? OR d.user_id = ? OR d.registration = ?)`;
+      params.push(dId, req.user.userId, req.user.login);
+    } else {
+      sql += ` AND (d.user_id = ? OR d.registration = ?)`;
+      params.push(req.user.userId, req.user.login);
+    }
   } else if (driverId) {
     sql += ` AND t.driver_id = ?`;
     params.push(driverId);
@@ -247,7 +254,7 @@ tripsRouter.post('/', requireAuth, requireRole(['ADMINISTRADOR', 'DESENVOLVEDOR'
   const cleanPlannedDeparture = planned_departure || (appointment_window ? appointment_window.replace(/[^0-9:]/g, ' ').trim().split(/\s+/)[0] : '') || '08:00';
 
   // RULE 6: Inactive driver cannot receive new trip (TESTE 3)
-  const driver = queryOne<any>(`SELECT id, name, status FROM drivers WHERE id = ?`, [driver_id]);
+  const driver = queryOne<any>(`SELECT id, name, status FROM drivers WHERE id = ? OR user_id = ? OR registration = ?`, [driver_id, driver_id, driver_id]);
   if (!driver) {
     return res.status(404).json({ error: 'Motorista selecionado não foi encontrado.' });
   }
@@ -258,7 +265,7 @@ tripsRouter.post('/', requireAuth, requireRole(['ADMINISTRADOR', 'DESENVOLVEDOR'
   }
 
   // RULE 7: Inactive vehicle cannot receive new trip (TESTE 4)
-  const vehicle = queryOne<any>(`SELECT id, plate, status FROM vehicles WHERE id = ?`, [vehicle_id]);
+  const vehicle = queryOne<any>(`SELECT id, plate, status FROM vehicles WHERE id = ? OR plate = ?`, [vehicle_id, vehicle_id]);
   if (!vehicle) {
     return res.status(404).json({ error: 'Veículo selecionado não foi encontrado.' });
   }
@@ -274,7 +281,7 @@ tripsRouter.post('/', requireAuth, requireRole(['ADMINISTRADOR', 'DESENVOLVEDOR'
   }
 
   // RULE 8: Inactive factory cannot receive new trip
-  const factory = queryOne<any>(`SELECT id, name, factory_code, status FROM factories WHERE id = ?`, [factory_id]);
+  const factory = queryOne<any>(`SELECT id, name, factory_code, status FROM factories WHERE id = ? OR factory_code = ?`, [factory_id, factory_id]);
   if (!factory) {
     return res.status(404).json({ error: 'Fábrica selecionada não foi encontrada.' });
   }
@@ -299,9 +306,9 @@ tripsRouter.post('/', requireAuth, requireRole(['ADMINISTRADOR', 'DESENVOLVEDOR'
     [
       id,
       date,
-      driver_id,
-      vehicle_id,
-      factory_id,
+      driver.id,
+      vehicle.id,
+      factory.id,
       cleanPlannedDeparture,
       planned_arrival || null,
       observation || null,
@@ -327,7 +334,22 @@ tripsRouter.post('/', requireAuth, requireRole(['ADMINISTRADOR', 'DESENVOLVEDOR'
     `Criou viagem para ${driver.name} no veículo ${vehicle.plate} com destino a ${factory.name} em ${date} às ${cleanPlannedDeparture}.`
   );
 
-  res.status(201).json({ id, message: 'Viagem criada com sucesso.' });
+  const createdTrip = queryOne<any>(
+    `SELECT t.*, 
+            d.name as driver_name, d.cpf as driver_cpf, d.registration as driver_registration, d.phone as driver_phone,
+            v.plate as vehicle_plate, v.vehicle_number as vehicle_number, v.brand as vehicle_brand, v.model as vehicle_model,
+            f.factory_code as factory_code, f.name as factory_name, f.state as factory_state, f.city as factory_city,
+            u.name as created_by_name
+     FROM trips t
+     LEFT JOIN drivers d ON d.id = t.driver_id
+     LEFT JOIN vehicles v ON v.id = t.vehicle_id
+     LEFT JOIN factories f ON f.id = t.factory_id
+     LEFT JOIN users u ON u.id = t.created_by
+     WHERE t.id = ?`,
+    [id]
+  );
+
+  res.status(201).json({ id, message: 'Viagem criada com sucesso.', trip: createdTrip });
 });
 
 // PUT /api/trips/:id - Edit trip (ADMIN or DEV)

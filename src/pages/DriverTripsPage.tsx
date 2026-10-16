@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import { api } from '../services/api.ts';
 import { Trip, TRIP_STATUS_CONFIG } from '../types/index.ts';
 import { formatAppointmentWindow } from '../utils/formatters.ts';
@@ -13,6 +14,7 @@ interface DriverTripsPageProps {
 }
 
 export const DriverTripsPage: React.FC<DriverTripsPageProps> = ({ onOpenTripDetails }) => {
+  const { user } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -30,7 +32,19 @@ export const DriverTripsPage: React.FC<DriverTripsPageProps> = ({ onOpenTripDeta
     setLoading(true);
     try {
       const data = await api.getTrips();
-      setTrips(data || []);
+      const myTrips = (data || []).filter(trip => {
+        if (!user || user.role !== 'MOTORISTA') return true;
+        const matchDriverId = trip.driver_id && (
+          trip.driver_id === user.driver_id ||
+          trip.driver_id === user.id ||
+          trip.driver_id.toLowerCase().includes(user.login?.toLowerCase() || '')
+        );
+        const matchUserId = (trip as any).driver_user_id && (trip as any).driver_user_id === user.id;
+        const matchReg = (trip as any).driver_registration && user.login && (trip as any).driver_registration.toUpperCase() === user.login.toUpperCase();
+        const matchName = trip.driver_name && user.name && trip.driver_name.toUpperCase() === user.name.toUpperCase();
+        return matchDriverId || matchUserId || matchReg || matchName;
+      });
+      setTrips(myTrips);
     } catch (err) {
       console.error('Erro ao carregar viagens do motorista:', err);
     } finally {

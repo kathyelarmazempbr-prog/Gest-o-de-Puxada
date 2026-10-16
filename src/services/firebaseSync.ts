@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { firestoreDb } from './firebase.ts';
 
 export const firebaseSync = {
@@ -51,6 +51,31 @@ export const firebaseSync = {
       }
     } catch (err) {
       console.warn(`[FirebaseSync] Error syncing batch to ${collectionName}:`, err);
+    }
+  },
+
+  // Real-time listener for Firestore collection changes
+  subscribeCollection(collectionName: string, onUpdate: (items: any[]) => void): (() => void) | null {
+    try {
+      if (!firestoreDb) return null;
+      const collRef = collection(firestoreDb, collectionName);
+      const unsubscribe = onSnapshot(
+        collRef,
+        (snapshot) => {
+          const items: any[] = [];
+          snapshot.forEach((docSnap) => {
+            items.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          onUpdate(items);
+        },
+        (err) => {
+          console.warn(`[FirebaseSync] onSnapshot error on ${collectionName}:`, err);
+        }
+      );
+      return unsubscribe;
+    } catch (err) {
+      console.warn(`[FirebaseSync] subscribeCollection error on ${collectionName}:`, err);
+      return null;
     }
   }
 };
