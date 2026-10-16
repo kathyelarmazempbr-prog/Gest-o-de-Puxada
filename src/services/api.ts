@@ -1,4 +1,5 @@
 import { localDataStore, REAL_USERS } from './localDataStore.ts';
+import { firebaseSync } from './firebaseSync.ts';
 
 const API_URL = '';
 
@@ -214,8 +215,13 @@ export const api = {
           body: JSON.stringify(userData),
         });
         if (res?.id) newId = res.id;
-      } catch (e) {
-        console.warn('API createUser failed, saving locally:', e);
+        if (res?.user) {
+          localDataStore.addUser(res.user);
+          await firebaseSync.saveItem('users', res.user.id, res.user).catch(() => {});
+          return res;
+        }
+      } catch (e: any) {
+        throw new Error(e.message || 'Falha ao cadastrar usuário no banco de dados.');
       }
     }
 
@@ -234,6 +240,7 @@ export const api = {
       updated_at: new Date().toISOString(),
     };
     localDataStore.addUser(newUser as any);
+    await firebaseSync.saveItem('users', newId, newUser).catch(() => {});
     return { id: newId, message: 'Usuário cadastrado com sucesso', user: newUser };
   },
 
@@ -311,8 +318,8 @@ export const api = {
           body: JSON.stringify(data),
         });
         if (res?.id) newId = res.id;
-      } catch (e) {
-        console.warn('API createFactory failed, saving locally:', e);
+      } catch (e: any) {
+        throw new Error(e.message || 'Falha ao cadastrar fábrica no banco de dados.');
       }
     }
 
@@ -327,6 +334,7 @@ export const api = {
       updated_at: new Date().toISOString(),
     };
     localDataStore.addFactory(newFactory as any);
+    await firebaseSync.saveItem('factories', newId, newFactory).catch(() => {});
     return { id: newId, message: 'Fábrica cadastrada com sucesso' };
   },
 
@@ -412,8 +420,8 @@ export const api = {
           body: JSON.stringify(data),
         });
         if (res?.id) newId = res.id;
-      } catch (e) {
-        console.warn('API createVehicle failed, saving locally:', e);
+      } catch (e: any) {
+        throw new Error(e.message || 'Falha ao cadastrar veículo no banco de dados.');
       }
     }
 
@@ -431,6 +439,7 @@ export const api = {
       updated_at: new Date().toISOString(),
     };
     localDataStore.addVehicle(newVehicle as any);
+    await firebaseSync.saveItem('vehicles', newId, newVehicle).catch(() => {});
     return { id: newId, message: 'Veículo cadastrado com sucesso' };
   },
 
@@ -507,11 +516,13 @@ export const api = {
           body: JSON.stringify(data),
         });
         if (res?.id) newId = res.id;
-      } catch (e) {
-        console.warn('API createDriver failed, saving locally:', e);
+      } catch (e: any) {
+        throw new Error(e.message || 'Falha ao cadastrar motorista no banco de dados.');
       }
     }
-    localDataStore.addDriver({ id: newId, ...data });
+    const newDriver = { id: newId, ...data };
+    localDataStore.addDriver(newDriver);
+    await firebaseSync.saveItem('drivers', newId, newDriver).catch(() => {});
     return { id: newId, message: 'Motorista cadastrado com sucesso' };
   },
 
@@ -612,17 +623,19 @@ export const api = {
     let newId = `trp_${Date.now()}`;
     if (!isStaticEnvironment()) {
       try {
-        const res = await request<{ id: string; message: string }>('/api/trips', {
+        const res = await request<{ id: string; message: string; trip?: any }>('/api/trips', {
           method: 'POST',
           body: JSON.stringify(enrichedTrip),
         });
         if (res?.id) newId = res.id;
-      } catch (e) {
-        console.warn('API createTrip failed, saving locally:', e);
+        if (res?.trip) Object.assign(enrichedTrip, res.trip);
+      } catch (e: any) {
+        throw new Error(e.message || 'Falha ao salvar a viagem no banco de dados.');
       }
     }
     enrichedTrip.id = newId;
     localDataStore.addTrip(enrichedTrip as any);
+    await firebaseSync.saveItem('trips', newId, enrichedTrip).catch(() => {});
     window.dispatchEvent(new CustomEvent('puxada:trip-updated'));
     return { id: newId, message: 'Viagem criada com sucesso', trip: enrichedTrip };
   },
