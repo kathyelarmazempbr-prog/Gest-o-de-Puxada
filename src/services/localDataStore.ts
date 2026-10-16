@@ -729,6 +729,9 @@ export const localDataStore = {
     const current = this.getDrivers();
     const updated = [driver, ...current.filter(d => d.id !== driver.id)];
     this.saveDrivers(updated);
+    if (driver && driver.id) {
+      firebaseSync.saveItem('drivers', driver.id, driver).catch(() => {});
+    }
     return updated;
   },
 
@@ -737,6 +740,7 @@ export const localDataStore = {
     const current = this.getDrivers();
     const updated = current.filter(d => d.id !== id);
     this.saveDrivers(updated);
+    firebaseSync.deleteItem('drivers', id).catch(() => {});
     return updated;
   },
 
@@ -838,6 +842,9 @@ export const localDataStore = {
     const current = this.getSchedules();
     const updated = [schedule, ...current.filter(s => s.id !== schedule.id)];
     this.saveSchedules(updated);
+    if (schedule && schedule.id) {
+      firebaseSync.saveItem('schedules', schedule.id, schedule).catch(() => {});
+    }
     return updated;
   },
 
