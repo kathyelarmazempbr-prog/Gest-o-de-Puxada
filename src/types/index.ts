@@ -10,7 +10,7 @@ export type ScheduleStatus = 'Confirmada' | 'Pendente' | 'Cancelada';
 export interface User {
   id: string;
   name: string;
-  cpf: string;
+  cpf?: string;
   phone?: string;
   email: string;
   login: string;
@@ -55,7 +55,7 @@ export interface Vehicle {
   model: string;
   year: number;
   type: string;
-  capacity: string;
+  capacity?: string;
   status: VehicleStatus;
   created_at: string;
   updated_at: string;
@@ -105,7 +105,7 @@ export interface Trip {
   loading_start_time?: string;
   loading_end_time?: string;
   departure_from_factory_time?: string;
-  created_by: string;
+  created_by?: string;
   created_by_name?: string;
   created_at: string;
   updated_at: string;
@@ -124,8 +124,8 @@ export interface Trip {
   vehicle_capacity?: string;
   factory_code: string;
   factory_name: string;
-  factory_state: string;
-  factory_city: string;
+  factory_state?: string;
+  factory_city?: string;
 }
 
 export interface Schedule {
